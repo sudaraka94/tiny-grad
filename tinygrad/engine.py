@@ -1,3 +1,5 @@
+import math
+
 class Value:
     """
     Wraps a scaler value and provides an interface.
@@ -26,7 +28,16 @@ class Value:
 
     def __radd__(self, other):
         return self + other
+    
+    def __neg__(self):
+        return self*-1
 
+    def __sub__(self, other):
+        return self + (-other)
+
+    def __rsub__(self, other):
+        return -self + other
+        
     def __mul__(self, other):
         other = other if isinstance(other, Value) else Value(other)
         out = Value(self.data*other.data, prev=(self, other), label="*")
@@ -57,3 +68,34 @@ class Value:
             
         out._backward = _backward
         return out
+
+    def tanh(self):
+        out = Value(math.tanh(self.data), prev = (self,), label="tanh")
+
+        def _backward():
+            self.grad = (1 - out.data**2)*out.grad
+        
+        out._backward = _backward
+        return out
+    
+    def backward(self):
+        """
+        initialize back propagation. (uses topological sort)
+        """
+        visited = set()
+        nodes = []
+        
+        def topo(node):
+            if node in visited:
+                return
+            if node._prev:
+                for child in node._prev:
+                    topo(child)
+            
+            nodes.append(node)
+            visited.add(node)
+            
+        self.grad = 1.0
+        topo(self)
+        for node in reversed(nodes):
+            node._backward()
